@@ -63,8 +63,10 @@ struct Jwks {
 #[derive(Deserialize)]
 #[serde(tag = "kty")]
 enum Jwk {
+    // kty=RSA
     #[serde(rename = "RSA")]
     Rsa(JwkRsa),
+    // kty=*
     #[serde(other)]
     Other,
 }
@@ -120,13 +122,14 @@ mod test {
     use super::*;
 
     const MS_JWKS_STR: &str = include_str!("ms-jwks.json");
+    const GOOGLE_JWKS_STR: &str = include_str!("google-jwks.json");
 
     // Parse Microsoft OIDC provider keys
     #[test]
-    fn parse_microsoft_jwks() {
-        let ms_jwks: Jwks = serde_json::from_str(MS_JWKS_STR).unwrap();
+    fn parse_google_jwks() {
+        let jwks: Jwks = serde_json::from_str(GOOGLE_JWKS_STR).unwrap();
 
-        for key in &ms_jwks.keys {
+        for key in &jwks.keys {
             if let Jwk::Rsa(rsa_key) = key {
                 let _pubkey = RsaPublicKey::try_from(rsa_key).unwrap();
             } else {
@@ -135,7 +138,27 @@ mod test {
         }
 
         // Decode as RsaPublicKey
-        let keys = HashMap::<String, RsaPublicKey>::try_from(ms_jwks).unwrap();
+        let keys = HashMap::<String, RsaPublicKey>::try_from(jwks).unwrap();
+        // Check if all keys are correctly decoded
+        assert_eq!(keys.len(), 2);
+    }
+
+    // Parse Microsoft OIDC provider keys
+    #[test]
+    fn parse_microsoft_jwks() {
+        let jwks: Jwks = serde_json::from_str(MS_JWKS_STR).unwrap();
+
+        for key in &jwks.keys {
+            if let Jwk::Rsa(rsa_key) = key {
+                let _pubkey = RsaPublicKey::try_from(rsa_key).unwrap();
+            } else {
+                panic!("Invalid key type")
+            }
+        }
+
+        // Decode as RsaPublicKey
+        let keys = HashMap::<String, RsaPublicKey>::try_from(jwks).unwrap();
+        // Check if all keys are correctly decoded
         assert_eq!(keys.len(), 7);
     }
 }
