@@ -11,7 +11,6 @@ pub(super) type RsaPublicKey = rsa::RsaPublicKey;
 #[cfg(not(rustcrypto))]
 pub(super) type RsaPublicKey = openssl::rsa::Rsa<openssl::pkey::Public>;
 
-
 /// ProviderKeys from Jwks
 impl TryFrom<Jwks> for HashMap<String, RsaPublicKey> {
     type Error = std::io::Error;
