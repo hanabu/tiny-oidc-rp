@@ -940,6 +940,7 @@ dependencies = [
  "base64",
  "log",
  "openssl",
+ "rand_core",
  "reqwest",
  "rsa",
  "serde",
