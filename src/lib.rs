@@ -7,4 +7,5 @@ mod provider;
 pub use client::{Client, Session};
 pub use error::Error;
 pub use id_token::IdToken;
-pub use provider::{MicrosoftTenantProvider, Provider, GOOGLE_PROVIDER};
+pub use provider::Provider;
+pub use provider::{GoogleProvider, MicrosoftTenantProvider};

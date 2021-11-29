@@ -1,5 +1,5 @@
 use crate::error::AuthenticationFailedError;
-use crate::{Error, IdToken};
+use crate::{Error, IdToken, Provider};
 
 pub enum OidcResponseMode {
     /// For server side Web app.
@@ -20,20 +20,19 @@ impl std::ops::Deref for OidcResponseMode {
 }
 
 /// OpenID Connect relying party client
-pub struct Client {
+pub struct Client<P: Provider> {
     client_id: String,
     client_secret: String,
     redirect_uri: String,
     response_mode: OidcResponseMode,
-    auth_url: url::Url,
-    token_url: url::Url,
+    provider: P,
 }
 
-impl Client {
+impl<P: Provider> Client<P> {
     /// Create authn URL with query parameter
     pub fn auth_url(&self, session: &Session) -> url::Url {
         // append queries to authorize endpoint
-        let mut authurl = self.auth_url.clone();
+        let mut authurl = self.provider.authorization_endpoint();
         authurl
             .query_pairs_mut()
             .append_pair("scope", "openid profile email")
@@ -74,7 +73,7 @@ impl Client {
 
         // Send POST request to token endpoint
         let response = reqwest::Client::new()
-            .post(self.token_url.clone())
+            .post(self.provider.token_endpoint().clone())
             .form(&params)
             .send()
             .await?;
@@ -109,13 +108,10 @@ impl Client {
     ) -> Result<(), AuthenticationFailedError> {
         use std::time::SystemTime;
 
-        /*
-        let matcher = wildmatch::WildMatch::new(&self.issuer);
-        if !matcher.is_match(&id_token.iss) {
+        if !self.provider.validate_iss(&id_token.iss) {
             log::info!("Invalid iss {}", id_token.iss);
-            return Err(AuthenticationFailedReson::ClaimValidationError.into());
+            return Err(AuthenticationFailedError::ClaimValidationError.into());
         }
-        */
 
         if id_token.aud != self.client_id {
             log::info!("Invalid aud {}", id_token.aud);
@@ -142,6 +138,16 @@ impl Client {
         }
 
         Ok(())
+    }
+}
+
+pub struct ClientBuilder<P: Provider> {
+    provider: P,
+}
+
+impl<P: Provider> ClientBuilder<P> {
+    pub fn from_provider(provider: P) -> Self {
+        Self { provider }
     }
 }
 
