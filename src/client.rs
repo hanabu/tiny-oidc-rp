@@ -206,16 +206,10 @@ impl Session {
 
     /// PKCE code_challenge in Base64 string
     fn pkce_challenge(&self) -> String {
-        #[cfg(rustcrypto)]
         use sha2::{Digest, Sha256};
 
         // PKCE code_challenge=Base64Url(SHA256(pkce_verifier))
-        // OpenSSL SHA256
-        #[cfg(not(rustcrypto))]
-        let challenge_byte = openssl::sha::sha256(&self.rand_bytes[108..144]);
-        // Rust Crypto SHA256
-        #[cfg(rustcrypto)]
-        let challenge_byte = sha2::Sha256::digest(&self.rand_bytes[108..144]);
+        let challenge_byte = Sha256::digest(&self.rand_bytes[108..144]);
 
         base64::encode_config(&challenge_byte, base64::URL_SAFE_NO_PAD)
     }

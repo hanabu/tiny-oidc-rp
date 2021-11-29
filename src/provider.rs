@@ -1,9 +1,12 @@
 //! OpenID connect ID Provider
-
-mod jwk;
 use serde::Deserialize;
 use std::borrow::Cow;
 use std::collections::HashMap;
+
+/// OpenID Connect ID provider issuer
+trait Issuer {
+    fn validate_iss(iss: &str) -> bool;
+}
 
 /// OpenID connect provider
 #[derive(Deserialize)]
@@ -30,13 +33,6 @@ impl Provider {
 
         Ok(provider)
     }
-}
-
-struct ProviderKeys {
-    // Time stamp of last fetch
-    last_fetch: std::time::SystemTime,
-    // map of (kid, rsa public key)
-    keys: HashMap<String, jwk::RsaPublicKey>,
 }
 
 /// Google OpenID connect ID provider
