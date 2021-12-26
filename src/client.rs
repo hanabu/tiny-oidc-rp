@@ -92,7 +92,7 @@ impl<P: Provider> Client<P> {
             // Decode ID Token string.
             //   Skip JWS signature validation here,
             //   because code flow can trust issuer by TLS server certificate validation
-            let id_token = IdToken::danger_decode_without_validation(&token_response.id_token)?;
+            let id_token = IdToken::decode_without_jws_validation(&token_response.id_token)?;
 
             self.validate_claims(&id_token, session)?;
             Ok(id_token)
@@ -142,12 +142,74 @@ impl<P: Provider> Client<P> {
 }
 
 pub struct ClientBuilder<P: Provider> {
+    client_id: Option<String>,
+    client_secret: Option<String>,
+    redirect_uri: Option<String>,
+    response_mode: OidcResponseMode,
     provider: P,
 }
 
 impl<P: Provider> ClientBuilder<P> {
+    /// Client builder from OpenID connect Provider
     pub fn from_provider(provider: P) -> Self {
-        Self { provider }
+        Self {
+            client_id: None,
+            client_secret: None,
+            redirect_uri: None,
+            response_mode: OidcResponseMode::FormPost,
+            provider,
+        }
+    }
+
+    /// Build OpenID connect Client
+    pub fn build(self) -> Option<Client<P>> {
+        match self {
+            Self {
+                client_id: Some(client_id),
+                client_secret: Some(client_secret),
+                redirect_uri: Some(redirect_uri),
+                response_mode,
+                provider,
+            } => Some(Client {
+                client_id,
+                client_secret,
+                redirect_uri,
+                response_mode,
+                provider,
+            }),
+            _ => {
+                // Some elements are not initialized.
+                None
+            }
+        }
+    }
+
+    /// Client ID
+    pub fn client_id(self, client_id: &str) -> Self {
+        let mut builder = self;
+        builder.client_id = Some(client_id.to_string());
+        builder
+    }
+
+    /// Client secret
+    pub fn client_secret(self, client_secret: &str) -> Self {
+        let mut builder = self;
+        builder.client_secret = Some(client_secret.to_string());
+        builder
+    }
+
+    /// Redirect URI
+    pub fn redirect_uri(self, redirect_uri: &str) -> Self {
+        let mut builder = self;
+        builder.redirect_uri = Some(redirect_uri.to_string());
+        builder
+    }
+
+    /// Response mode
+    pub fn response_mode(self, response_mode: OidcResponseMode) -> Self {
+        let mut builder = self;
+        builder.response_mode = response_mode;
+        builder
     }
 }
 

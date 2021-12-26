@@ -8,4 +8,4 @@ pub use client::{Client, Session};
 pub use error::Error;
 pub use id_token::IdToken;
 pub use provider::Provider;
-pub use provider::{GoogleProvider, MicrosoftTenantProvider};
+pub use provider::{DiscoveredProvider, GoogleProvider, MicrosoftTenantProvider};

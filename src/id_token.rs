@@ -16,9 +16,11 @@ pub struct IdToken {
     pub(crate) name: Option<String>,
 }
 
-// Create IdToken from JWS string
 impl IdToken {
-    pub(crate) fn danger_decode_without_validation(
+    /// Decode IdToken from JWS string
+    /// Warning: This function does not validate JWS signature.
+    /// You can use this function for "code flow" only.
+    pub(crate) fn decode_without_jws_validation(
         jws: &str,
     ) -> Result<Self, AuthenticationFailedError> {
         // Decode JWT
@@ -61,11 +63,4 @@ impl IdToken {
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
-}
-
-/// JOSE header
-#[derive(serde::Deserialize)]
-struct JwsHeader {
-    alg: String,
-    kid: String,
 }

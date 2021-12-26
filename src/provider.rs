@@ -37,6 +37,20 @@ impl DiscoveredProvider {
     }
 }
 
+impl Provider for DiscoveredProvider {
+    fn authorization_endpoint(&self) -> url::Url {
+        url::Url::parse(&self.authorization_endpoint).unwrap()
+    }
+
+    fn token_endpoint(&self) -> url::Url {
+        url::Url::parse(&self.token_endpoint).unwrap()
+    }
+
+    fn validate_iss(&self, iss: &str) -> bool {
+        &self.issuer == iss
+    }
+}
+
 /// Google OpenID connect ID provider
 /// https://accounts.google.com/.well-known/openid-configuration
 pub struct GoogleProvider {}
