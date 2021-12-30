@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: MIT
 use crate::error::AuthenticationFailedError;
 use crate::{Error, IdToken, Provider};
 
+#[derive(Clone, Debug)]
 pub enum OidcResponseMode {
     /// For server side Web app.
     FormPost,
@@ -20,6 +22,7 @@ impl std::ops::Deref for OidcResponseMode {
 }
 
 /// OpenID Connect relying party client
+#[derive(Clone, Debug)]
 pub struct Client<P: Provider> {
     client_id: String,
     client_secret: String,
@@ -277,7 +280,7 @@ impl Session {
         use sha2::{Digest, Sha256};
 
         // PKCE code_challenge=Base64Url(SHA256(pkce_verifier))
-        let challenge_byte = Sha256::digest(&self.rand_bytes[108..144]);
+        let challenge_byte = Sha256::digest(&self.pkce_verifier().as_bytes());
 
         base64::encode_config(&challenge_byte, base64::URL_SAFE_NO_PAD)
     }
