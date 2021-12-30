@@ -5,7 +5,7 @@ mod id_token;
 mod provider;
 
 // exports
-pub use client::{Client, Session};
+pub use client::{Client, ClientBuilder, Session};
 pub use error::Error;
 pub use id_token::IdToken;
 pub use provider::Provider;
