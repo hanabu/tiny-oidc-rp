@@ -57,6 +57,11 @@ impl Provider for DiscoveredProvider {
 /// https://accounts.google.com/.well-known/openid-configuration
 #[derive(Clone)]
 pub struct GoogleProvider {}
+impl GoogleProvider {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 impl Provider for GoogleProvider {
     fn authorization_endpoint(&self) -> url::Url {
         url::Url::parse("https://accounts.google.com/o/oauth2/v2/auth").unwrap()

@@ -154,7 +154,7 @@ pub struct ClientBuilder<P: Provider> {
 
 impl<P: Provider> ClientBuilder<P> {
     /// Client builder from OpenID connect Provider
-    pub fn from_provider(provider: P) -> Self {
+    pub(crate) fn from_provider(provider: P) -> Self {
         Self {
             client_id: None,
             client_secret: None,

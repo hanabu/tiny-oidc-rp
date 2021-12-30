@@ -12,12 +12,13 @@ async fn main() -> Result<(), lambda_web::LambdaError> {
     use axum::{routing::get, routing::post, AddExtensionLayer, Router};
     use lambda_web::{is_running_on_lambda, run_hyper_on_lambda};
     use std::net::SocketAddr;
-    use tiny_oidc_rp::{ClientBuilder, GoogleProvider};
+    use tiny_oidc_rp::{GoogleProvider, Provider};
 
     env_logger::init();
 
     // Google OpenID connect client
-    let oidc_client = ClientBuilder::from_provider(GoogleProvider {})
+    let oidc_client = GoogleProvider::new()
+        .client()
         .client_id(&std::env::var("OIDC_CLIENT_ID").unwrap())
         .client_secret(&std::env::var("OIDC_CLIENT_SECRET").unwrap())
         .redirect_uri(&std::env::var("OIDC_REDIRECT_URI").unwrap())
