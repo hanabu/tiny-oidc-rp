@@ -1,1 +1,8 @@
+*~
+*.bak
+*.swp
+*.zip
+.env
 /target/
+/target_lambda/
+/*.sh
