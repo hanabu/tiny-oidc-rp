@@ -15,7 +15,7 @@ pub trait Provider: Send + Sync + Sized {
 }
 
 /// OpenID connect provider from discovery
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct DiscoveredProvider {
     authorization_endpoint: String,
     issuer: String,
@@ -55,6 +55,7 @@ impl Provider for DiscoveredProvider {
 
 /// Google OpenID connect ID provider
 /// https://accounts.google.com/.well-known/openid-configuration
+#[derive(Clone)]
 pub struct GoogleProvider {}
 impl Provider for GoogleProvider {
     fn authorization_endpoint(&self) -> url::Url {
@@ -72,6 +73,7 @@ impl Provider for GoogleProvider {
 
 /// Microsoft OpenID connect ID provider
 /// https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
+#[derive(Clone)]
 pub struct MicrosoftTenantProvider {
     tenant_uuid: Option<String>,
 }
