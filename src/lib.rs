@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 mod client;
 mod error;
 mod id_token;

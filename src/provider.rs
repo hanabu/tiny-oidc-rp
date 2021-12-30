@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //! OpenID connect ID Provider
 use serde::Deserialize;
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /// tiny-oidc-rp Errors
 #[derive(Debug)]
 pub enum Error {
