@@ -84,7 +84,7 @@ async fn oidc_start_auth(
     // authorization endpoint URL with query parameters
     let auth_url = oidc_client.auth_url(&session);
 
-    // store session
+    // store session state
     let cookie_val = session_store.store(&session).await;
 
     // Redirect to authorization endpoint
@@ -122,7 +122,7 @@ async fn oidc_return_from_idp(
     // Login session key from cookie
     let session_key = cookie.get("__Host-LoginSesion").unwrap();
 
-    // Load login session
+    // Load login session state
     let session = session_store.load(session_key).await.unwrap();
 
     // Get ID token from token endpoint
@@ -167,6 +167,8 @@ async fn oidc_return_from_idp(
     (headers, Html(body))
 }
 
+/// This is example only, HashMap based in-memory session state store
+/// For production use, you should implement persistent session store on some database.
 #[derive(Clone)]
 struct InMemoryLoginSessionStore {
     store: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, String>>>,
@@ -179,22 +181,20 @@ impl InMemoryLoginSessionStore {
         }
     }
 
+    /// Save session state in HashMap
     async fn store(&self, session: &tiny_oidc_rp::Session) -> String {
         let (key, val) = session.save_session();
 
         let mut map = self.store.lock().await;
         map.insert(key.clone(), val);
-
-        println!("Save session key \"{}\"", key);
         key
     }
 
+    /// Load session state
     async fn load(&self, key: &str) -> Option<tiny_oidc_rp::Session> {
         let mut map = self.store.lock().await;
 
-        println!("Loading session key \"{}\"", key);
         if let Some(val) = map.remove(key) {
-            println!("Session key found \"{}\"", key);
             tiny_oidc_rp::Session::load_session(key, &val).ok()
         } else {
             None

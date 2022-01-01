@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: MIT
+
+//!
+//! OpenID connect relaying party implementation
+//! See [examples](https://github.com/hanabu/tiny-oidc-rp/tree/main/examples)
+//!
 mod client;
 mod error;
 mod id_token;
