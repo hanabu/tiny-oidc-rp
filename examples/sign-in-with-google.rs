@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 //
 // Sign in with Google example
+//
 
 use axum::extract::{Extension, Form, TypedHeader};
 use axum::http::{header::HeaderMap, StatusCode};
@@ -25,7 +26,7 @@ async fn main() -> Result<(), lambda_web::LambdaError> {
         .build()
         .unwrap();
 
-    // build our application with a route
+    // build routes
     let app = Router::new()
         .route("/login", get(oidc_start_auth))
         .route("/login", post(oidc_return_from_idp))
@@ -37,8 +38,13 @@ async fn main() -> Result<(), lambda_web::LambdaError> {
         // Run app on AWS Lambda
         run_hyper_on_lambda(app).await?;
     } else {
-        // Run app on local server
-        let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+        use std::str::FromStr;
+        // Run app on local server or Google Cloud Run
+        let port = std::env::var("PORT")
+            .ok()
+            .and_then(|p| u16::from_str(&p).ok())
+            .unwrap_or(8080u16);
+        let addr = SocketAddr::from(([0, 0, 0, 0], port));
         axum::Server::bind(&addr)
             .serve(app.into_make_service())
             .await?;
