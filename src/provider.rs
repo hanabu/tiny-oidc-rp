@@ -111,7 +111,15 @@ impl Provider for MicrosoftTenantProvider {
     }
 
     fn token_endpoint(&self) -> url::Url {
-        url::Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/token").unwrap()
+        if let Some(tenant_uuid) = &self.tenant_uuid {
+            url::Url::parse(&format!(
+                "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
+                tenant_uuid
+            ))
+            .unwrap()
+        } else {
+            url::Url::parse("https://login.microsoftonline.com/common/oauth2/v2.0/token").unwrap()
+        }
     }
 
     fn validate_iss(&self, iss: &str) -> bool {
