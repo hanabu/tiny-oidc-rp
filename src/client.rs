@@ -239,7 +239,7 @@ impl Session {
     /// Both `key` and `value` is URL safe string
     pub fn save_session(&self) -> (String, String) {
         return (
-            base64::encode_config(&self.rand_bytes[..36], base64::URL_SAFE_NO_PAD),
+            self.key(),
             base64::encode_config(&self.rand_bytes[36..], base64::URL_SAFE_NO_PAD),
         );
     }
@@ -263,6 +263,11 @@ impl Session {
         } else {
             Err(base64::DecodeError::InvalidLength)
         }
+    }
+
+    /// Base64Url(key) -> 48 chars
+    pub fn key(&self) -> String {
+        base64::encode_config(&self.rand_bytes[..36], base64::URL_SAFE_NO_PAD)
     }
 
     /// Base64Url(state) -> 48 chars

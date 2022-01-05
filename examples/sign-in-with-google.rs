@@ -85,7 +85,7 @@ async fn oidc_start_auth(
     let auth_url = oidc_client.auth_url(&session);
 
     // store session state
-    let cookie_val = session_store.store(&session).await;
+    session_store.store(&session).await;
 
     // Redirect to authorization endpoint
     let mut headers = HeaderMap::new();
@@ -98,7 +98,7 @@ async fn oidc_start_auth(
         header::SET_COOKIE,
         header::HeaderValue::from_str(&format!(
             "__Host-LoginSesion={}; path=/; Secure; HttpOnly; SameSite=None;",
-            cookie_val
+            session.key()
         ))
         .unwrap(),
     );
@@ -182,12 +182,11 @@ impl InMemoryLoginSessionStore {
     }
 
     /// Save session state in HashMap
-    async fn store(&self, session: &tiny_oidc_rp::Session) -> String {
+    async fn store(&self, session: &tiny_oidc_rp::Session) {
         let (key, val) = session.save_session();
 
         let mut map = self.store.lock().await;
         map.insert(key.clone(), val);
-        key
     }
 
     /// Load session state
