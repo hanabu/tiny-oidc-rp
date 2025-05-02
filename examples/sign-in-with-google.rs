@@ -3,16 +3,20 @@
 // Sign in with Google example
 //
 
-use axum::extract::{Extension, Form, TypedHeader};
+use axum::extract::{Form, State};
 use axum::http::{header::HeaderMap, StatusCode};
 use axum::response::Html;
+use axum_extra::TypedHeader;
 type GoogleClient = tiny_oidc_rp::Client<tiny_oidc_rp::GoogleProvider>;
 
+struct AppState {
+    oidc_client: GoogleClient,
+    session_store: InMemoryLoginSessionStore,
+}
+
 #[tokio::main]
-async fn main() -> Result<(), lambda_web::LambdaError> {
-    use axum::{routing::get, routing::post, AddExtensionLayer, Router};
-    use lambda_web::{is_running_on_lambda, run_hyper_on_lambda};
-    use std::net::SocketAddr;
+async fn main() -> Result<(), lambda_http::Error> {
+    use axum::{routing::get, routing::post, Router};
     use tiny_oidc_rp::{GoogleProvider, Provider};
 
     env_logger::init();
@@ -26,28 +30,28 @@ async fn main() -> Result<(), lambda_web::LambdaError> {
         .build()
         .unwrap();
 
+    let app_state = std::sync::Arc::new(AppState {
+        oidc_client,
+        session_store: InMemoryLoginSessionStore::new(),
+    });
+
     // build routes
     let app = Router::new()
         .route("/login", get(oidc_start_auth))
         .route("/login", post(oidc_return_from_idp))
         .route("/", get(root))
-        .layer(AddExtensionLayer::new(oidc_client))
-        .layer(AddExtensionLayer::new(InMemoryLoginSessionStore::new()));
+        .with_state(app_state);
 
-    if is_running_on_lambda() {
+    if std::env::var("AWS_LAMBDA_RUNTIME_API").is_ok() {
         // Run app on AWS Lambda
-        run_hyper_on_lambda(app).await?;
+        lambda_http::run(app).await?;
     } else {
-        use std::str::FromStr;
-        // Run app on local server or Google Cloud Run
-        let port = std::env::var("PORT")
-            .ok()
-            .and_then(|p| u16::from_str(&p).ok())
-            .unwrap_or(8080u16);
-        let addr = SocketAddr::from(([0, 0, 0, 0], port));
-        axum::Server::bind(&addr)
-            .serve(app.into_make_service())
-            .await?;
+        // Run app on local server or Google Cloud Run, etc.
+        let addr = std::env::var("LISTEN").unwrap_or("127.0.0.1:3000".to_string());
+
+        println!("Server starts listening on {}", addr);
+        let listener = tokio::net::TcpListener::bind(&addr).await?;
+        axum::serve(listener, app).await?;
     }
     Ok(())
 }
@@ -74,18 +78,17 @@ async fn root() -> Html<&'static str> {
 
 /// Redirect to IdP authorization endpoint
 async fn oidc_start_auth(
-    Extension(oidc_client): Extension<GoogleClient>,
-    Extension(session_store): Extension<InMemoryLoginSessionStore>,
-) -> (StatusCode, HeaderMap, &'static str) {
+    State(state): State<std::sync::Arc<AppState>>,
+) -> axum::response::Result<(StatusCode, HeaderMap, &'static str)> {
     use axum::http::header;
 
     // Generate OIDC state, nonce
-    let session = tiny_oidc_rp::Session::new_session();
+    let session = tiny_oidc_rp::Session::new_session().unwrap();
     // authorization endpoint URL with query parameters
-    let auth_url = oidc_client.auth_url(&session);
+    let auth_url = state.oidc_client.auth_url(&session);
 
     // store session state
-    session_store.store(&session).await;
+    state.session_store.store(&session).await;
 
     // Redirect to authorization endpoint
     let mut headers = HeaderMap::new();
@@ -102,7 +105,7 @@ async fn oidc_start_auth(
         ))
         .unwrap(),
     );
-    (StatusCode::SEE_OTHER, headers, "")
+    Ok((StatusCode::SEE_OTHER, headers, ""))
 }
 
 #[derive(serde::Deserialize)]
@@ -112,31 +115,38 @@ struct OidcAuthResult {
 }
 /// Redirect from IdP with sessin and code
 async fn oidc_return_from_idp(
+    TypedHeader(cookie): TypedHeader<axum_extra::headers::Cookie>,
+    State(state): State<std::sync::Arc<AppState>>,
     Form(auth_result): Form<OidcAuthResult>,
-    TypedHeader(cookie): TypedHeader<axum::headers::Cookie>,
-    Extension(oidc_client): Extension<GoogleClient>,
-    Extension(session_store): Extension<InMemoryLoginSessionStore>,
-) -> (HeaderMap, Html<String>) {
+) -> axum::response::Result<(HeaderMap, Html<String>)> {
     use axum::http::header;
 
     // Login session key from cookie
     let session_key = cookie.get("__Host-LoginSesion").unwrap();
 
     // Load login session state
-    let session = session_store.load(session_key).await.unwrap();
+    let session = state.session_store.load(session_key).await.unwrap();
 
     // Get ID token from token endpoint
-    let idtoken = oidc_client
+    let idtoken = state
+        .oidc_client
         .authenticate(&auth_result.state, &auth_result.code, &session)
         .await
         .unwrap();
 
-    // Clear login session cookie
     let mut headers = HeaderMap::new();
+    // Clear OIDC session cookie
     headers.insert(
         header::SET_COOKIE,
         header::HeaderValue::from_static(
-            "__Host-LoginSesion=; path=/; Secure; HttpOnly; SameSite=None; Max-Age=0;",
+            "__Host-LoginSesion=; path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0;",
+        ),
+    );
+    // Session cookie
+    headers.insert(
+        header::SET_COOKIE,
+        header::HeaderValue::from_static(
+            "__Host-sesion=loggedin; path=/; Secure; HttpOnly; SameSite=Lax;",
         ),
     );
 
@@ -164,7 +174,7 @@ async fn oidc_return_from_idp(
         idtoken.email().unwrap_or("-"),
     );
 
-    (headers, Html(body))
+    Ok((headers, Html(body)))
 }
 
 /// This is example only, HashMap based in-memory session state store

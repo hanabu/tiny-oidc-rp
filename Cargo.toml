@@ -1,9 +1,9 @@
 [package]
 name = "tiny-oidc-rp"
-version = "0.1.1"
+version = "0.2.0-beta1"
 authors = ["Hanabusa Masahiro"]
 description = "Tiny OpenID Connect Relying Party"
-edition = "2018"
+edition = "2021"
 readme = "README.md"
 repository = "https://github.com/hanabu/tiny-oidc-rp"
 license = "MIT"
@@ -12,19 +12,26 @@ categories = ["authentication"]
 exclude = []
 
 [dependencies]
-base64 = "0.13"
+base64 = "0.22"
+getrandom = "0.3"
 log = "0.4"
-reqwest = { version = "0.11", default-features = false, features = ["json"] }
-rand_core = { version = "0.6", features = ["getrandom"] }
-serde = { version = "1", features = ["derive"] }
+reqwest = { version="0.12", default-features=false, features=["json"] }
+serde = { version="1", features = ["derive"] }
 serde_json = "1"
-sha2 = { version = "0.9", default-features = false, features = ["std"] }
+sha2 = { version="0.10", default-features=false, features=["std"] }
 url = "2"
 
 [dev-dependencies]
-env_logger = "0.9"
-reqwest = { version = "0.11", default-features = false, features = ["json", "native-tls"] }
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"] }
-lambda-web = { version = "0.1", features = ["hyper"] }
-axum = { version = "0.4", features = ["headers"] }
+axum = { version="0.8" }
+axum-extra = { version="0.10", features=["typed-header"] }
+env_logger = "0.11"
+lambda_http = { version="0.14", default-features=false, features=["apigw_http"] }
+reqwest = { version="0.12", default-features=false, features=["json", "rustls-tls"] }
+tokio = { version="1", features=["macros", "net", "rt-multi-thread", "sync"] }
 
+[profile.release]
+# Size optimization for examples
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+strip = "symbols"

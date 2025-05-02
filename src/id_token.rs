@@ -24,6 +24,8 @@ impl IdToken {
     pub(crate) fn decode_without_jws_validation(
         jws: &str,
     ) -> Result<Self, AuthenticationFailedError> {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+
         // Decode JWT
         let mut jws_elm = jws.split('.');
         let _jws_header = jws_elm.next();
@@ -31,7 +33,7 @@ impl IdToken {
         let _jws_sign = jws_elm.next();
 
         if let Some(jws_payload) = jws_payload {
-            let json_str = base64::decode_config(jws_payload, base64::URL_SAFE_NO_PAD)?;
+            let json_str = URL_SAFE_NO_PAD.decode(jws_payload)?;
             Ok(serde_json::from_slice(&json_str)?)
         } else {
             // Invalid JWS structure

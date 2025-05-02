@@ -224,13 +224,14 @@ pub struct Session {
 
 impl Session {
     /// Start new OpenID connect session
-    pub fn new_session() -> Session {
-        use rand_core::{OsRng, RngCore};
-
+    pub fn new_session() -> Result<Session, crate::Error> {
         // Make random bytes
         let mut rand_bytes = [0u8; 144];
-        OsRng.fill_bytes(&mut rand_bytes);
-        Session { rand_bytes }
+        getrandom::fill(&mut rand_bytes).map_err(|e| {
+            log::error!("getrandom failed with {:?}", e);
+            crate::Error::InternalError
+        })?;
+        Ok(Session { rand_bytes })
     }
 
     /// Serialize session and returns (key, value) pair.
@@ -238,10 +239,8 @@ impl Session {
     /// and store `(key,value)` pair in server side database.
     /// Both `key` and `value` is URL safe string
     pub fn save_session(&self) -> (String, String) {
-        return (
-            self.key(),
-            base64::encode_config(&self.rand_bytes[36..], base64::URL_SAFE_NO_PAD),
-        );
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        return (self.key(), URL_SAFE_NO_PAD.encode(&self.rand_bytes[36..]));
     }
 
     /// Deserialize session saved by `save_session()`
@@ -250,56 +249,57 @@ impl Session {
     pub fn load_session(
         session_key: &str,
         session_value: &str,
-    ) -> Result<Self, base64::DecodeError> {
-        if session_key.len() == 48 && session_value.len() == 144 {
-            use base64::URL_SAFE_NO_PAD;
-            let mut rand_bytes = [0u8; 144];
+    ) -> Result<Self, base64::DecodeSliceError> {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        let mut rand_bytes = [0u8; 144];
 
-            // Decode key & value
-            base64::decode_config_slice(&session_key, URL_SAFE_NO_PAD, &mut rand_bytes[..36])?;
-            base64::decode_config_slice(&session_value, URL_SAFE_NO_PAD, &mut rand_bytes[36..])?;
+        // Decode key & value
+        URL_SAFE_NO_PAD.decode_slice(session_key, &mut rand_bytes[..36])?;
+        URL_SAFE_NO_PAD.decode_slice(session_value, &mut rand_bytes[36..])?;
 
-            Ok(Self { rand_bytes })
-        } else {
-            Err(base64::DecodeError::InvalidLength)
-        }
+        Ok(Self { rand_bytes })
     }
 
     /// Base64Url(key) -> 48 chars
     pub fn key(&self) -> String {
-        base64::encode_config(&self.rand_bytes[..36], base64::URL_SAFE_NO_PAD)
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        URL_SAFE_NO_PAD.encode(&self.rand_bytes[..36])
     }
 
     /// Base64Url(state) -> 48 chars
     fn state(&self) -> String {
-        base64::encode_config(&self.rand_bytes[36..72], base64::URL_SAFE_NO_PAD)
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        URL_SAFE_NO_PAD.encode(&self.rand_bytes[36..72])
     }
 
     /// Base64Url(nonce) -> 48 chars
     fn nonce(&self) -> String {
-        base64::encode_config(&self.rand_bytes[72..108], base64::URL_SAFE_NO_PAD)
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        URL_SAFE_NO_PAD.encode(&self.rand_bytes[72..108])
     }
 
     /// PKCE code_challenge in Base64 string
     fn pkce_challenge(&self) -> String {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
         use sha2::{Digest, Sha256};
 
         // PKCE code_challenge=Base64Url(SHA256(pkce_verifier))
         let challenge_byte = Sha256::digest(&self.pkce_verifier().as_bytes());
 
-        base64::encode_config(&challenge_byte, base64::URL_SAFE_NO_PAD)
+        URL_SAFE_NO_PAD.encode(&challenge_byte)
     }
 
     /// PKCE code_verifier in Base64 string
     fn pkce_verifier(&self) -> String {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
         // code_verifier = Base64Url(pkce_verifier)
-        base64::encode_config(&self.rand_bytes[108..144], base64::URL_SAFE_NO_PAD)
+        URL_SAFE_NO_PAD.encode(&self.rand_bytes[108..144])
     }
 }
 
 /// Response body JSON from token endpoint
 #[derive(Debug, serde::Deserialize)]
 struct OidcTokenEndpointResponse {
-    access_token: Option<String>,
+    // access_token: Option<String>,
     id_token: String,
 }
