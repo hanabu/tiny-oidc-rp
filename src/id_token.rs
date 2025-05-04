@@ -6,7 +6,7 @@ use crate::error::AuthenticationFailedError;
 /// [2. ID Token](https://openid.net/specs/openid-connect-core-1_0.html#IDToken) and
 /// [5.1 Standard Claims](https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims)
 #[derive(serde::Deserialize)]
-pub struct IdToken {
+pub struct IdToken<T = ()> {
     pub(crate) iss: String,   // Issuer
     pub(crate) sub: String,   // Subject (unique identifier)
     pub(crate) aud: String,   // Audience (must be same as client_id)
@@ -15,9 +15,15 @@ pub struct IdToken {
     pub(crate) nonce: String, // nonce (must be same as nonce of auth request)
     pub(crate) email: Option<String>,
     pub(crate) name: Option<String>,
+    /// Extra claims by crate user
+    #[serde(flatten)]
+    pub(crate) extra: T,
 }
 
-impl IdToken {
+impl<T> IdToken<T>
+where
+    T: serde::de::DeserializeOwned,
+{
     /// Decode IdToken from JWS string
     /// Warning: This function does not validate JWS signature.
     /// You can use this function for "code flow" only.
@@ -43,7 +49,7 @@ impl IdToken {
 }
 
 // expose ID Token values
-impl IdToken {
+impl<T> IdToken<T> {
     /// ID Token issuer
     pub fn issuer(&self) -> &str {
         &self.iss
@@ -65,5 +71,10 @@ impl IdToken {
     /// ordered according to the End-User's locale and preferences.
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
+    }
+
+    /// Extra claims
+    pub fn extra(&self) -> &T {
+        &self.extra
     }
 }

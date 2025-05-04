@@ -69,12 +69,19 @@ impl<P: Provider> Client<P> {
     ///
     /// `state`, `code` are retrived from HTTP query parameters or form body.
     /// `session` is retrived from HTTP cookie.
-    pub async fn authenticate(
+    ///
+    /// If you need decoding extra claims in ID token,
+    /// specify your own Deserialized type as T.
+    /// Otherwise, set T as ()
+    pub async fn authenticate<T>(
         &self,
         state: &str,
         code: &str,
         session: &Session,
-    ) -> Result<IdToken, Error> {
+    ) -> Result<IdToken<T>, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
         // Check state mismatch (possible CSRF)
         if state != session.state() {
             return Err(Error::BadRequest);
@@ -112,7 +119,7 @@ impl<P: Provider> Client<P> {
             // Decode ID Token string.
             //   Skip JWS signature validation here,
             //   because code flow can trust issuer by TLS server certificate validation
-            let id_token = IdToken::decode_without_jws_validation(&token_response.id_token)?;
+            let id_token = IdToken::<T>::decode_without_jws_validation(&token_response.id_token)?;
 
             self.validate_claims(&id_token, session)?;
             Ok(id_token)
@@ -121,9 +128,9 @@ impl<P: Provider> Client<P> {
 
     /// Validate ID token claims
     /// See also [OpenID connect spec 3.1.3.7. ID Token Validation](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation)
-    fn validate_claims(
+    fn validate_claims<T>(
         &self,
-        id_token: &IdToken,
+        id_token: &IdToken<T>,
         session: &Session,
     ) -> Result<(), AuthenticationFailedError> {
         use std::time::SystemTime;

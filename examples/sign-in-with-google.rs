@@ -130,9 +130,10 @@ async fn oidc_return_from_idp(
     // Get ID token from token endpoint
     let idtoken = state
         .oidc_client
-        .authenticate(&auth_result.state, &auth_result.code, &session)
+        .authenticate::<GoogleIdTokenExtraClaims>(&auth_result.state, &auth_result.code, &session)
         .await
         .unwrap();
+    // If you don't need extra claims, call as authenticate::<()>(...)
 
     let mut headers = HeaderMap::new();
     // Clear OIDC session cookie
@@ -150,6 +151,17 @@ async fn oidc_return_from_idp(
         ),
     );
 
+    // <img> for picture url
+    let img = idtoken
+        .extra()
+        .picture
+        .as_ref()
+        .map(|pic_url| {
+            // !!! CAUTION !!! You must escape string for production
+            format!("<img src={} alt=\"[Your avatar]\" />", pic_url)
+        })
+        .unwrap_or_default();
+
     // Debug print body
     let body = format!(
         r###"<!DOCTYPE html>
@@ -164,17 +176,26 @@ async fn oidc_return_from_idp(
 <li>name: {}</li>
 <li>email: {}</li>
 </ul>
+<p>{}</p>
 <hr />
 <p><a href="/">Back</a></p>
 </body>
 </html>
 "###,
+        // !!! CAUTION !!! You must escape string for production
         idtoken.subject(),
         idtoken.name().unwrap_or("-"),
         idtoken.email().unwrap_or("-"),
+        img
     );
 
     Ok((headers, Html(body)))
+}
+
+/// Extra ID token claims
+#[derive(serde::Deserialize)]
+struct GoogleIdTokenExtraClaims {
+    picture: Option<String>,
 }
 
 /// This is example only, HashMap based in-memory session state store
