@@ -3,7 +3,7 @@
 // Sign in with Google example
 //
 
-use axum::extract::{Form, State};
+use axum::extract::{Query, State};
 use axum::http::{header::HeaderMap, StatusCode};
 use axum::response::Html;
 use axum_extra::TypedHeader;
@@ -117,7 +117,7 @@ struct OidcAuthResult {
 async fn oidc_return_from_idp(
     TypedHeader(cookie): TypedHeader<axum_extra::headers::Cookie>,
     State(state): State<std::sync::Arc<AppState>>,
-    Form(auth_result): Form<OidcAuthResult>,
+    Query(auth_result): Query<OidcAuthResult>,
 ) -> axum::response::Result<(HeaderMap, Html<String>)> {
     use axum::http::header;
 
@@ -125,7 +125,8 @@ async fn oidc_return_from_idp(
     let session_key = cookie.get("__Host-LoginSesion").unwrap();
 
     // Load login session state
-    let session = state.session_store.load(session_key).await.unwrap();
+    // Removing from session store is important to prevent replay attacks
+    let session = state.session_store.get_remove(session_key).await.unwrap();
 
     // Get ID token from token endpoint
     let idtoken = state
@@ -221,7 +222,7 @@ impl InMemoryLoginSessionStore {
     }
 
     /// Load session state
-    async fn load(&self, key: &str) -> Option<tiny_oidc_rp::Session> {
+    async fn get_remove(&self, key: &str) -> Option<tiny_oidc_rp::Session> {
         let mut map = self.store.lock().await;
 
         if let Some(val) = map.remove(key) {
