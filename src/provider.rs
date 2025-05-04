@@ -135,25 +135,28 @@ impl Provider for MicrosoftTenantProvider {
 #[cfg(test)]
 mod test {
     use super::*;
-    /*
-        #[tokio::test]
-        async fn discover_google() {
-            let client = reqwest::Client::new();
 
-            let provider = Provider::from_discovery(
-                "https://accounts.google.com/.well-known/openid-configuration",
-                &client,
-            )
-            .await
-            .unwrap();
+    #[tokio::test]
+    async fn discover_google() {
+        let google_idp = GoogleProvider::new();
+        let client = reqwest::Client::new();
 
-            assert_eq!(
-                provider.authorization_endpoint,
-                GOOGLE_PROVIDER.authorization_endpoint
-            );
-            assert_eq!(provider.issuer, GOOGLE_PROVIDER.issuer);
-            assert_eq!(provider.jwks_uri, GOOGLE_PROVIDER.jwks_uri);
-            assert_eq!(provider.token_endpoint, GOOGLE_PROVIDER.token_endpoint);
-        }
-    */
+        let provider = DiscoveredProvider::from_discovery(
+            "https://accounts.google.com/.well-known/openid-configuration",
+            &client,
+        )
+        .await
+        .unwrap();
+
+        // Compare predefined Google IdP and OpenID connect discovery
+        assert_eq!(
+            provider.authorization_endpoint,
+            google_idp.authorization_endpoint().as_str()
+        );
+        assert_eq!(
+            provider.token_endpoint,
+            google_idp.token_endpoint().as_str()
+        );
+        assert!(google_idp.validate_iss(&provider.issuer));
+    }
 }
