@@ -4,7 +4,7 @@
 
 To run OpenID connect relaying party, you have to host redirect URI on HTTPS server where IdP redirect web browser with authentication code, and you need to register your redirect URI to IdP.
 
-In this example, redirect URI is on the path `/login`.  So, redirect URI should be `https://<yourserver>/login`
+In this example, redirect URI is on the path `/login/callback`.  So, redirect URI should be `https://<yourserver>/login/callback`
 
 ## Prepare Google IdP
 
@@ -34,4 +34,4 @@ To run this example, three environment variables are required.
 
 - OIDC_CLIENT_ID : client ID obtained by Google IdP
 - OIDC_CLIENT_SECRET : client secret obtained by Google IdP
-- OIDC_REDIRECT_URI : `https://<your-server>/login`
+- OIDC_REDIRECT_URI : `https://<your-server>/login/callback`

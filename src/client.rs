@@ -2,19 +2,33 @@
 use crate::error::AuthenticationFailedError;
 use crate::{Error, IdToken, Provider};
 
+/// OpenID connect response\_mode parameter.
+///
+/// See: https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
 #[derive(Clone, Debug)]
 pub enum OidcResponseMode {
-    /// For server side Web app.
+    /// Default for "code" flow.
+    /// Authentication code is returned by HTTP GET with query parameter.
+    Query,
+    /// Alternate mode.
+    /// Authentication code is returned by HTTP POST with form body.
+    ///
+    /// `form_post` mode lowers the risk of authentication code disclosure
+    /// by `Referer` HTTP header or HTTP server log,
+    /// but consider that SameSite session cookie will not be POST with this mode.
     FormPost,
-    /// For single page Web app.
+    /// For single page Web app,
+    /// Authentication code is returned by HTTP GET with fragment
+    /// and will not be sent to server directly.
     Fragment,
 }
 
-// &oidc_response_mode as &str
+// response_mode as &str
 impl std::ops::Deref for OidcResponseMode {
     type Target = str;
     fn deref(&self) -> &str {
         match self {
+            Self::Query => "query",
             Self::FormPost => "form_post",
             Self::Fragment => "fragment",
         }
@@ -147,6 +161,7 @@ impl<P: Provider> Client<P> {
     }
 }
 
+/// Setup Client
 pub struct ClientBuilder<P: Provider> {
     client_id: Option<String>,
     client_secret: Option<String>,
@@ -162,7 +177,7 @@ impl<P: Provider> ClientBuilder<P> {
             client_id: None,
             client_secret: None,
             redirect_uri: None,
-            response_mode: OidcResponseMode::FormPost,
+            response_mode: OidcResponseMode::Query,
             provider,
         }
     }
@@ -231,7 +246,7 @@ impl Session {
         // Make random bytes
         let mut rand_bytes = [0u8; 144];
         getrandom::fill(&mut rand_bytes).map_err(|e| {
-            log::error!("getrandom failed with {:?}", e);
+            log::error!("getrandom() failed with {:?}", e);
             crate::Error::InternalError
         })?;
         Ok(Session { rand_bytes })

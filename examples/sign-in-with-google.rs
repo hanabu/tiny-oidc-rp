@@ -16,7 +16,7 @@ struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<(), lambda_http::Error> {
-    use axum::{routing::get, routing::post, Router};
+    use axum::{routing::get, Router};
     use tiny_oidc_rp::{GoogleProvider, Provider};
 
     env_logger::init();
@@ -38,7 +38,7 @@ async fn main() -> Result<(), lambda_http::Error> {
     // build routes
     let app = Router::new()
         .route("/login", get(oidc_start_auth))
-        .route("/login", post(oidc_return_from_idp))
+        .route("/login/callback", get(oidc_return_from_idp))
         .route("/", get(root))
         .with_state(app_state);
 
@@ -100,7 +100,7 @@ async fn oidc_start_auth(
     headers.insert(
         header::SET_COOKIE,
         header::HeaderValue::from_str(&format!(
-            "__Host-LoginSesion={}; path=/; Secure; HttpOnly; SameSite=None;",
+            "__Host-LoginSesion={}; path=/; Secure; HttpOnly; SameSite=Lax;",
             session.key()
         ))
         .unwrap(),
