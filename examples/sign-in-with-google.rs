@@ -85,7 +85,7 @@ async fn oidc_start_auth(
     // Generate OIDC state, nonce
     let session = tiny_oidc_rp::Session::new_session().unwrap();
     // authorization endpoint URL with query parameters
-    let auth_url = state.oidc_client.auth_url(&session);
+    let auth_url = state.oidc_client.auth_url(&session, None);
 
     // store session state
     state.session_store.store(&session).await;

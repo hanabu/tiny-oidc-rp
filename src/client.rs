@@ -2,7 +2,7 @@
 use crate::error::AuthenticationFailedError;
 use crate::{Error, IdToken, Provider};
 
-/// OpenID connect response\_mode parameter.
+/// OpenID connect `response_mode` parameter.
 ///
 /// See: https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
 #[derive(Clone, Debug)]
@@ -35,6 +35,28 @@ impl std::ops::Deref for OidcResponseMode {
     }
 }
 
+/// OpenID connect `prompt` parameter.
+#[derive(Clone, Debug)]
+pub enum OidcPrompt {
+    NoPrompt, // `prompt=none`, renamed to avoid confusion with Option::None
+    Login,
+    Consent,
+    SelectAccount,
+}
+
+// prompt as &str
+impl std::ops::Deref for OidcPrompt {
+    type Target = str;
+    fn deref(&self) -> &str {
+        match self {
+            Self::NoPrompt => "none",
+            Self::Login => "login",
+            Self::Consent => "consent",
+            Self::SelectAccount => "select_account",
+        }
+    }
+}
+
 /// OpenID Connect relying party client
 #[derive(Clone, Debug)]
 pub struct Client<P: Provider> {
@@ -47,7 +69,9 @@ pub struct Client<P: Provider> {
 
 impl<P: Provider> Client<P> {
     /// Create authn URL with query parameter
-    pub fn auth_url(&self, session: &Session) -> url::Url {
+    ///
+    /// If you request the user to force re-login, set prompt=Some(Login)
+    pub fn auth_url(&self, session: &Session, prompt: Option<OidcPrompt>) -> url::Url {
         // append queries to authorize endpoint
         let mut authurl = self.provider.authorization_endpoint();
         authurl
@@ -61,6 +85,10 @@ impl<P: Provider> Client<P> {
             .append_pair("redirect_uri", &self.redirect_uri)
             .append_pair("code_challenge_method", "S256")
             .append_pair("code_challenge", &session.pkce_challenge());
+
+        if let Some(prompt) = prompt {
+            authurl.query_pairs_mut().append_pair("prompt", &prompt);
+        }
 
         authurl
     }
