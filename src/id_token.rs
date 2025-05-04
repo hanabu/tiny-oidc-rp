@@ -30,7 +30,7 @@ where
     pub(crate) fn decode_without_jws_validation(
         jws: &str,
     ) -> Result<Self, AuthenticationFailedError> {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 
         // Decode JWT
         let mut jws_elm = jws.split('.');

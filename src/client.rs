@@ -112,6 +112,7 @@ impl<P: Provider> Client<P> {
     {
         // Check state mismatch (possible CSRF)
         if state != session.state() {
+            log::warn!("state mismatch");
             return Err(Error::BadRequest);
         }
 
@@ -165,7 +166,7 @@ impl<P: Provider> Client<P> {
 
         if !self.provider.validate_iss(&id_token.iss) {
             log::info!("Invalid iss {}", id_token.iss);
-            return Err(AuthenticationFailedError::ClaimValidationError.into());
+            return Err(AuthenticationFailedError::ClaimValidationError);
         }
 
         if id_token.aud != self.client_id {
@@ -292,7 +293,7 @@ impl Session {
     /// and store `(key,value)` pair in server side database.
     /// Both `key` and `value` is URL safe string
     pub fn save_session(&self) -> (String, String) {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         return (self.key(), URL_SAFE_NO_PAD.encode(&self.rand_bytes[36..]));
     }
 
@@ -303,7 +304,7 @@ impl Session {
         session_key: &str,
         session_value: &str,
     ) -> Result<Self, base64::DecodeSliceError> {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         let mut rand_bytes = [0u8; 144];
 
         // Decode key & value
@@ -315,25 +316,25 @@ impl Session {
 
     /// Base64Url(key) -> 48 chars
     pub fn key(&self) -> String {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         URL_SAFE_NO_PAD.encode(&self.rand_bytes[..36])
     }
 
     /// Base64Url(state) -> 48 chars
     fn state(&self) -> String {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         URL_SAFE_NO_PAD.encode(&self.rand_bytes[36..72])
     }
 
     /// Base64Url(nonce) -> 48 chars
     fn nonce(&self) -> String {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         URL_SAFE_NO_PAD.encode(&self.rand_bytes[72..108])
     }
 
     /// PKCE code_challenge in Base64 string
     fn pkce_challenge(&self) -> String {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         use sha2::{Digest, Sha256};
 
         // PKCE code_challenge=Base64Url(SHA256(pkce_verifier))
@@ -344,7 +345,7 @@ impl Session {
 
     /// PKCE code_verifier in Base64 string
     fn pkce_verifier(&self) -> String {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         // code_verifier = Base64Url(pkce_verifier)
         URL_SAFE_NO_PAD.encode(&self.rand_bytes[108..144])
     }

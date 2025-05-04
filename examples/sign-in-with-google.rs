@@ -4,7 +4,7 @@
 //
 
 use axum::extract::{Query, State};
-use axum::http::{header::HeaderMap, StatusCode};
+use axum::http::{StatusCode, header::HeaderMap};
 use axum::response::Html;
 use axum_extra::TypedHeader;
 type GoogleClient = tiny_oidc_rp::Client<tiny_oidc_rp::GoogleProvider>;
@@ -16,7 +16,7 @@ struct AppState {
 
 #[tokio::main]
 async fn main() -> Result<(), lambda_http::Error> {
-    use axum::{routing::get, Router};
+    use axum::{Router, routing::get};
     use tiny_oidc_rp::{GoogleProvider, Provider};
 
     env_logger::init();
