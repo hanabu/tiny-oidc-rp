@@ -52,6 +52,9 @@ impl<P: Provider> Client<P> {
     }
 
     /// Authenticate user with `state`, `code`
+    ///
+    /// `state`, `code` are retrived from HTTP query parameters or form body.
+    /// `session` is retrived from HTTP cookie.
     pub async fn authenticate(
         &self,
         state: &str,

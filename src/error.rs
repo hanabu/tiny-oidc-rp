@@ -24,22 +24,40 @@ impl From<reqwest::Error> for Error {
         Self::BadGateway(err)
     }
 }
+
+impl From<Error> for http::StatusCode {
+    /// For convinience, convert crate::Error into HTTP status code
+    fn from(e: Error) -> Self {
+        use Error::*;
+        match e {
+            BadRequest => http::StatusCode::BAD_REQUEST,
+            AuthenticationFailed(_) => http::StatusCode::UNAUTHORIZED,
+            InternalError => http::StatusCode::INTERNAL_SERVER_ERROR,
+            BadGateway(_) => http::StatusCode::BAD_GATEWAY,
+        }
+    }
+}
+
+/// Detail of authentication failure
 #[derive(Debug)]
 pub enum AuthenticationFailedError {
+    /// Invalid claim in ID token. e.g., `iss`, `aud` mismatch, `exp` expires, etc.
     ClaimValidationError,
     JwsDecodeError,
-    Base64DecodeError(base64::DecodeError),
-    JsonDecodeError(serde_json::Error),
 }
 
 impl From<base64::DecodeError> for AuthenticationFailedError {
+    /// Base64 decode error in ID token JWS parser
     fn from(err: base64::DecodeError) -> Self {
-        Self::Base64DecodeError(err)
+        log::warn!("Invalid ID token: {:?}", err);
+        Self::JwsDecodeError
     }
 }
 
 impl From<serde_json::Error> for AuthenticationFailedError {
+    /// JSON decode error in ID token JWS parser
     fn from(err: serde_json::Error) -> Self {
-        Self::JsonDecodeError(err)
+        log::warn!("Invalid ID token: {:?}", err);
+        Self::JwsDecodeError
     }
 }
