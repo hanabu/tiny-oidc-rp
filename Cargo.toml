@@ -1,6 +1,6 @@
 [package]
 name = "tiny-oidc-rp"
-version = "0.2.0"
+version = "0.2.1-beta1"
 authors = ["Hanabusa Masahiro"]
 description = "Tiny OpenID Connect Relying Party"
 edition = "2024"
@@ -10,6 +10,11 @@ license = "MIT"
 keywords = ["OIDC", "OpenID"]
 categories = ["authentication"]
 exclude = []
+
+[features]
+default = ["session-store"]
+# Encrypt session data in cookie
+session-store = ["dep:aes-gcm-siv", "dep:cookie", "dep:rmp-serde"]
 
 [dependencies]
 base64 = "0.22"
@@ -21,6 +26,13 @@ serde = { version="1", features=["derive"] }
 serde_json = "1"
 sha2 = { version="0.10", default-features=false, features=["std"] }
 url = "2"
+
+# options for "session-store"
+aes-gcm-siv = { version="0.11", default-features=false, features=["aes"], optional=true }
+cookie = { version="0.18", default-features=false, optional=true }
+rmp-serde = { version="1", optional=true }
+
+
 
 [dev-dependencies]
 axum = { version="0.8" }
