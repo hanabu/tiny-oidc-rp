@@ -12,9 +12,13 @@ categories = ["authentication"]
 exclude = []
 
 [features]
-default = ["session-store"]
+default = []
 # Encrypt session data in cookie
 session-store = ["dep:aes-gcm-siv", "dep:cookie", "dep:rmp-serde"]
+
+[[example]]
+name = "sign-in-with-google"
+required-features = ["session-store"]
 
 [dependencies]
 base64 = "0.22"
@@ -32,11 +36,9 @@ aes-gcm-siv = { version="0.11", default-features=false, features=["aes"], option
 cookie = { version="0.18", default-features=false, optional=true }
 rmp-serde = { version="1", optional=true }
 
-
-
 [dev-dependencies]
 axum = { version="0.8" }
-axum-extra = { version="0.10", features=["typed-header"] }
+axum-extra = { version="0.10", features=["cookie"] }
 env_logger = "0.11"
 lambda_http = { version="0.14", default-features=false, features=["apigw_http"] }
 reqwest = { version="0.12", default-features=false, features=["json", "rustls-tls"] }
@@ -48,3 +50,7 @@ opt-level = "s"
 lto = "fat"
 codegen-units = 1
 strip = "symbols"
+
+[package.metadata.docs.rs]
+features = ["session-store"]
+# all-features = true
