@@ -4,7 +4,7 @@ use crate::{Error, IdToken, Provider};
 
 /// OpenID connect `response_mode` parameter.
 ///
-/// See: https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
+/// See: <https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html>
 #[derive(Clone, Debug)]
 pub enum OidcResponseMode {
     /// Default for "code" flow.
@@ -101,6 +101,13 @@ impl<P: Provider> Client<P> {
     /// If you need decoding extra claims in ID token,
     /// specify your own Deserialized type as T.
     /// Otherwise, set T as ()
+    ///
+    /// ```ignore
+    /// let session_key = cookie_jar.get("__Host-oidc-session")?.value();
+    /// let session_value = some_database.load(session_key)?;
+    /// let session = tiny_oidc_rp::Session::load_session(session_key, session_value)?;
+    /// let id_token = oidc_client.authenticate<()>(state, code, &session)?;
+    /// ```
     pub async fn authenticate<T>(
         &self,
         state: &str,

@@ -19,7 +19,7 @@ Then, you get OpenID connect "Client ID" and "Client secret".
 ## Build
 
 ```console
-$ cargo build --examples --release
+$ cargo build --examples --release --features session-store
 ...
 $ ls target/release/examples/sign-in-with-google
 ```

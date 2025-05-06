@@ -1,6 +1,13 @@
+// SPDX-License-Identifier: MIT
+
 //! Encrypted session store in Cookie
 //!
-//! This is very similar to [cookie::PrivateJar](https://docs.rs/cookie/latest/cookie/struct.PrivateJar.html),
+//! This session store is not mandatry for OpenID connect protocol itself,
+//! but most of server side authentication use Cookie to store session information.
+//! So I include this implementation here as optional feature.
+//!
+//! Session cookie encryption is very similar to
+//! [cookie::PrivateJar](https://docs.rs/cookie/latest/cookie/struct.PrivateJar.html),
 //! except for the following points:
 //!
 //! - Supports encryption key rotation
@@ -18,7 +25,8 @@ const MINIMUM_ENCRYPTED_SIZE: usize = PREFIX_SIZE + NONCE_SIZE + AUTH_TAG_SIZE;
 // minimum cookie size (base64 size)
 const MINIMUM_COOKIE_VALUE_SIZE: usize = MINIMUM_ENCRYPTED_SIZE * 3 / 4;
 
-/// Encrypt, message authentication key
+/// Session store encryption key.
+
 pub struct SessionStoreKey {
     // (AES-GCM-SIV key, key_id)
     keys: Vec<(aes_gcm_siv::Aes256GcmSiv, u8)>,
@@ -28,14 +36,18 @@ pub struct SessionStoreKey {
 /// Error in key initialization
 #[derive(Debug)]
 pub enum KeyError {
+    /// getrandom failed.
     GetRandomError,
+    /// `secret` in `new()` or `add_key()` is shorter than 40 characters.
     SecretTooShort,
+    /// `key_id` specified in `add_key()` is duplicated.
     DuplicatedKeyId,
 }
 
 /// Error in cookie encode
 #[derive(Debug)]
 pub enum EncodeError {
+    /// Payload is larger than AES-GCM-SIV limit ( >=2^36 ), normally does not occur
     PayloadTooLarge,
     MessagePackEncodeError(rmp_serde::encode::Error),
 }
@@ -43,7 +55,9 @@ pub enum EncodeError {
 /// Error in cookie decode
 #[derive(Debug)]
 pub enum DecodeError {
+    /// Cookie value is too short for decryption
     CookieTooShort,
+    /// No matching `key_id` in `SessionStoreKey`
     NoKey,
     Base64DecodeError(base64::DecodeError),
     DecryptionError(aes_gcm_siv::Error),
@@ -53,10 +67,9 @@ pub enum DecodeError {
 impl SessionStoreKey {
     /// New session store key.
     ///
-    /// `key_id` is for key rotation.
-    /// if you don't mind key rotation, set `key_id`=0
-    ///
-    /// `secret` should random generated string, at least 40 characters or more
+    /// - `key_id` is for key rotation.  
+    ///   if you don't mind key rotation, set `key_id`=0
+    /// - `secret` should random generated string, at least 40 characters or more.
     pub fn new(key_id: u8, secret: &str) -> Result<Self, KeyError> {
         use std::sync::atomic::AtomicU32;
 
@@ -81,13 +94,12 @@ impl SessionStoreKey {
         })
     }
 
-    /// Add alternate decryption key.
+    /// Add alternate decryption key for secret key rotation.
     ///
-    /// `key_id` must be unique.
+    /// - `key_id` must be unique.
+    /// - `secret` should random generated string, at least 40 characters or more
     ///
-    /// `secret` should random generated string, at least 40 characters or more
-    ///
-    /// When performing key rotation, follow the steps below
+    /// When performing key rotation, follow the steps below.
     ///
     /// First, deploy new secret as alternate key to all server instances.
     /// ```ignore
@@ -104,7 +116,7 @@ impl SessionStoreKey {
     /// let store_key = SessionStoreKey::new(1, new_secret)?;
     /// ```
     ///
-    /// For convinience, you can use first char of secret as key_id
+    /// For convenience, you may use first char of secret as key_id as you like.
     /// ```ignore
     /// let store_key = SessionStoreKey::new(secret.as_bytes()[0], secret)?;
     /// ```
@@ -120,6 +132,24 @@ impl SessionStoreKey {
     }
 
     /// Encrypt payload in Cookie
+    ///
+    /// ```ignore
+    /// #[derive(serde::Serialize)]
+    /// struct UserSession {
+    ///     user_id: i32,
+    ///     user_name: String,
+    /// }
+    /// let session = UserSession{
+    ///     user_id: 1,
+    ///     user_name: "Alice".to_string(),
+    /// };
+    /// let set_cookie = key.encrypt("__Host-session", &session, 0)?
+    ///     .http_only(true)
+    ///     .path("/")
+    ///     .secure(true)
+    ///     .same_site(cookie::SameSite::Lax)
+    ///     .build();
+    /// ```
     pub fn encrypt<'a, T>(
         &self,
         name: &'a str,
@@ -172,6 +202,14 @@ impl SessionStoreKey {
 
     /// Decrypt cookie
     ///
+    /// ```ignore
+    /// #[derive(serde::Deserialize)]
+    /// struct UserSession {
+    ///     user_id: i32,
+    ///     user_name: String,
+    /// }
+    /// let session = key.decrypt::<UserSession>(&cookie, 0)?;
+    /// ```
     pub fn decrypt<T>(&self, cookie: &cookie::Cookie) -> Result<T, DecodeError>
     where
         T: serde::de::DeserializeOwned,

@@ -2,9 +2,22 @@
 use crate::error::AuthenticationFailedError;
 
 /// OpenID connect ID Token.
+///
 /// More detail, see OpenID Connect Core specification
-/// [2. ID Token](https://openid.net/specs/openid-connect-core-1_0.html#IDToken) and
-/// [5.1 Standard Claims](https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims)
+///
+/// - [2. ID Token](https://openid.net/specs/openid-connect-core-1_0.html#IDToken) and
+/// - [5.1 Standard Claims](https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims)
+///
+/// If you need additionan non-standard claims, make your own struct and specify it to authenticate().
+/// ```ignore
+/// #[derive(serde::Deserialize)]
+/// struct IdTokenExtraClaims {
+///     picture: Option<String>,
+/// }
+/// let id_token_with_picture = oidc_client
+///     .authenticate::<IdTokenExtraClaims>(&state, &code, &session)?;
+/// let picture_url = id_token_with_picture.extra().picture;
+/// ```
 #[derive(serde::Deserialize)]
 pub struct IdToken<T = ()> {
     pub(crate) iss: String,   // Issuer

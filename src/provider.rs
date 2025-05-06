@@ -3,18 +3,32 @@
 //! OpenID connect ID Provider
 use serde::Deserialize;
 
-/// OpenID Connect ID provider issuer
+/// OpenID Connect ID provider
 pub trait Provider: Send + Sync + Sized {
+    /// Authorization endpoint of IdP
+    ///
+    /// See [OpenID Connect Core spec. 3.1.2](https://openid.net/specs/openid-connect-core-1_0.html#AuthorizationEndpoint)
     fn authorization_endpoint(&self) -> url::Url;
+
+    /// Token endpoint of IdP
+    ///
+    /// See [OpenID Connect Core spec. 3.1.3](https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint)
     fn token_endpoint(&self) -> url::Url;
+
+    /// validate `iss` issure claim in ID token.
+    ///
+    /// If `iss` claim is valid, return true.
     fn validate_iss(&self, iss: &str) -> bool;
 
+    /// Create `tiny_oidc_rp::Client`
     fn client(self) -> crate::client::ClientBuilder<Self> {
         crate::client::ClientBuilder::from_provider(self)
     }
 }
 
 /// OpenID connect provider from discovery
+///
+/// See []()
 #[derive(Clone, Deserialize)]
 pub struct DiscoveredProvider {
     authorization_endpoint: String,
@@ -23,8 +37,9 @@ pub struct DiscoveredProvider {
 }
 
 impl DiscoveredProvider {
-    /// Create Provider from OpenID connect discovery endpoint
-    /// https://<provider>/.well-known/openid-configuration
+    /// Create Provider from OpenID connect discovery endpoint.
+    ///
+    /// https://some_provider/.well-known/openid-configuration
     pub async fn from_discovery(
         discovery_url: &str,
         http_client: &reqwest::Client,
@@ -54,7 +69,8 @@ impl Provider for DiscoveredProvider {
 }
 
 /// Google OpenID connect ID provider
-/// https://accounts.google.com/.well-known/openid-configuration
+///
+/// <https://accounts.google.com/.well-known/openid-configuration>
 #[derive(Clone)]
 pub struct GoogleProvider {}
 impl GoogleProvider {
@@ -77,7 +93,8 @@ impl Provider for GoogleProvider {
 }
 
 /// Microsoft OpenID connect ID provider
-/// https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
+///
+/// <https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration>
 #[derive(Clone)]
 pub struct MicrosoftTenantProvider {
     tenant_uuid: Option<String>,
