@@ -103,6 +103,11 @@ impl SessionStoreKey {
     /// ```ignore
     /// let store_key = SessionStoreKey::new(1, new_secret)?;
     /// ```
+    ///
+    /// For convinience, you can use first char of secret as key_id
+    /// ```ignore
+    /// let store_key = SessionStoreKey::new(secret.as_bytes()[0], secret)?;
+    /// ```
     pub fn add_key(self, key_id: u8, secret: &str) -> Result<Self, KeyError> {
         // check key_id uniqueness
         if self.decrypt_key_by_id(key_id).is_some() {
@@ -303,5 +308,79 @@ impl SessionStoreKey {
 impl From<getrandom::Error> for KeyError {
     fn from(_e: getrandom::Error) -> Self {
         KeyError::GetRandomError
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+    struct Session {
+        user_id: i32,
+        name: String,
+    }
+
+    #[test]
+    fn key_generation() {
+        // single key
+        SessionStoreKey::new(0, "0123456789012345678901234567890123456789").unwrap();
+
+        // additional key
+        SessionStoreKey::new(0, "0123456789012345678901234567890123456789")
+            .unwrap()
+            .add_key(1, "1234567890123456789012345678901234567890")
+            .unwrap();
+    }
+
+    #[test]
+    fn too_short_secret() {
+        // 39 char
+        if let Err(KeyError::SecretTooShort) =
+            SessionStoreKey::new(0, "012345678901234567890123456789012345678")
+        {
+            // ok
+        } else {
+            panic!("Result != SecretTooShort");
+        }
+    }
+
+    #[test]
+    fn duplicated_key_id() {
+        // same key_id
+        let duplicated = SessionStoreKey::new(1, "0123456789012345678901234567890123456789")
+            .unwrap()
+            .add_key(1, "1234567890123456789012345678901234567890");
+
+        if let Err(KeyError::DuplicatedKeyId) = duplicated {
+            // ok
+        } else {
+            panic!("Result != DuplicatedKeyId");
+        }
+    }
+
+    #[test]
+    fn encrypt_decrypt() {
+        let alice = Session {
+            user_id: 1,
+            name: "Alice".to_string(),
+        };
+
+        // Encrypt
+        let key = SessionStoreKey::new(0, "0123456789012345678901234567890123456789").unwrap();
+        let cookie = key.encrypt("session", &alice, 5).unwrap().build();
+        // check payload ver
+        assert_eq!(SessionStoreKey::payload_ver(&cookie), Some(5));
+        // Check decrypted session is same as plain
+        let decrypted_session = key.decrypt::<Session>(&cookie).unwrap();
+        assert_eq!(decrypted_session, alice);
+
+        // Decrypt as alternate key
+        let key = SessionStoreKey::new(1, "1234567890123456789012345678901234567890")
+            .unwrap()
+            .add_key(0, "0123456789012345678901234567890123456789")
+            .unwrap();
+        let alt_decrypted = key.decrypt::<Session>(&cookie).unwrap();
+        assert_eq!(alt_decrypted, alice);
     }
 }
