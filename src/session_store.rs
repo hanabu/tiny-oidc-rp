@@ -25,12 +25,14 @@ const MINIMUM_ENCRYPTED_SIZE: usize = PREFIX_SIZE + NONCE_SIZE + AUTH_TAG_SIZE;
 // minimum cookie size (base64 size)
 const MINIMUM_COOKIE_VALUE_SIZE: usize = MINIMUM_ENCRYPTED_SIZE * 3 / 4;
 
-/// Session store encryption key.
+static NONCE_COUNTER: std::sync::OnceLock<Option<[std::sync::atomic::AtomicU32; 3]>> =
+    std::sync::OnceLock::new();
 
+/// Session store encryption key.
+#[derive(Clone)]
 pub struct SessionStoreKey {
     // (AES-GCM-SIV key, key_id)
     keys: Vec<(aes_gcm_siv::Aes256GcmSiv, u8)>,
-    nonce_counter: [std::sync::atomic::AtomicU32; 3],
 }
 
 /// Error in key initialization
@@ -73,14 +75,20 @@ impl SessionStoreKey {
     pub fn new(key_id: u8, secret: &str) -> Result<Self, KeyError> {
         use std::sync::atomic::AtomicU32;
 
-        // Initial nonce from random.
-        // Even we use SIV mode, we should avoid duplicated nonce.
-        // For multi-instance servers,
-        // sequential counter with random initial value
-        // may be the best we can do in stateless.
-        let r0 = AtomicU32::new(getrandom::u32()?);
-        let r1 = AtomicU32::new(getrandom::u32()?);
-        let r2 = AtomicU32::new(getrandom::u32()?);
+        let nonce = NONCE_COUNTER.get_or_init(|| {
+            // Initial nonce from random.
+            // Even we use SIV mode, we should avoid duplicated nonce.
+            // For multi-instance servers,
+            // sequential counter with random initial value
+            // may be the best we can do in stateless.
+            let r0 = AtomicU32::new(getrandom::u32().ok()?);
+            let r1 = AtomicU32::new(getrandom::u32().ok()?);
+            let r2 = AtomicU32::new(getrandom::u32().ok()?);
+            Some([r0, r1, r2])
+        });
+        if nonce.is_none() {
+            return Err(KeyError::GetRandomError);
+        }
 
         if secret.len() < 40 {
             return Err(KeyError::SecretTooShort);
@@ -90,7 +98,6 @@ impl SessionStoreKey {
         let aes_key = Self::derive_key(secret)?;
         Ok(Self {
             keys: vec![(aes_key, key_id)],
-            nonce_counter: [r0, r1, r2],
         })
     }
 
@@ -291,12 +298,16 @@ impl SessionStoreKey {
         use std::sync::atomic::Ordering::Relaxed;
         use std::u32::MAX;
 
+        // NONCE_COUNTER is initialized in Self::new(),
+        // it safe to call unwrap() here.
+        let nonce_counter = NONCE_COUNTER.get().unwrap().as_ref().unwrap();
+
         // 96bit increment
-        let u0 = self.nonce_counter[0].fetch_add(1, Relaxed);
+        let u0 = nonce_counter[0].fetch_add(1, Relaxed);
         let carry = if u0 == MAX { 1 } else { 0 };
-        let u1 = self.nonce_counter[1].fetch_add(carry, Relaxed);
+        let u1 = nonce_counter[1].fetch_add(carry, Relaxed);
         let carry = if u1 == MAX { 1 } else { 0 };
-        let u2 = self.nonce_counter[2].fetch_add(carry, Relaxed);
+        let u2 = nonce_counter[2].fetch_add(carry, Relaxed);
 
         // Serialize as 96bit little endian uint
         let mut nonce = [0u8; 12];
