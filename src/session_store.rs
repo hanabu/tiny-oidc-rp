@@ -239,7 +239,7 @@ impl SessionStoreKey {
     ///     user_id: i32,
     ///     user_name: String,
     /// }
-    /// let session = key.decrypt::<UserSession>(&cookie, 0)?;
+    /// let session = key.decrypt::<UserSession>(&cookie)?;
     /// ```
     pub fn decrypt<T>(&self, cookie: &cookie::Cookie) -> Result<T, DecodeError>
     where
