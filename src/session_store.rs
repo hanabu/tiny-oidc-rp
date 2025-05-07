@@ -140,6 +140,14 @@ impl SessionStoreKey {
 
     /// Encrypt payload in Cookie
     ///
+    /// `name` is the Cookie name.
+    /// Consider adding `__Host-` prefix to Cookie `name` for session store.
+    ///
+    /// `encrypt()` always add `Secure`,`HttpOnly` Cookie attributes.
+    /// You need explicitly turn off these attribute if you allow them.
+    ///
+    /// When `name` has `__Host-` prefix, `encrypt()` also add  `Path=/` automatically.
+    ///
     /// ```ignore
     /// #[derive(serde::Serialize)]
     /// struct UserSession {
@@ -151,12 +159,17 @@ impl SessionStoreKey {
     ///     user_name: "Alice".to_string(),
     /// };
     /// let set_cookie = key.encrypt("__Host-session", &session, 0)?
-    ///     .http_only(true)
-    ///     .path("/")
-    ///     .secure(true)
     ///     .same_site(cookie::SameSite::Lax)
     ///     .build();
     /// ```
+    ///
+    /// For production use,
+    /// - `Secure`, `HttpOnly` should always be set.
+    /// - `__Host-` prefix is recommended to mitigate session fixation attack.
+    /// - `SameSite` should be set to mitigate CSRF attack, but it's not enough.  
+    ///   e.g., exploited.yourdomain.com can fetch to yourhost.yourdomain.com
+    ///   with SameSite Cookie.
+    ///
     pub fn encrypt<'a, T>(
         &self,
         name: &'a str,
@@ -178,7 +191,7 @@ impl SessionStoreKey {
 
         // Generate nonce
         // message = [payload_ver || key_id || nonce || MessagePack(payload) || tag]
-        let mut message = Vec::with_capacity(3000);
+        let mut message = Vec::with_capacity(3072); // Base64 encode makes 4096 byte Cookie limit
         message.push(payload_ver);
         message.push(self.encrypt_key_id());
         message.extend_from_slice(&self.nonce());
@@ -211,7 +224,11 @@ impl SessionStoreKey {
             .http_only(true)
             .secure(true);
 
-        Ok(builder)
+        if name.starts_with("__Host-") {
+            Ok(builder.path("/"))
+        } else {
+            Ok(builder)
+        }
     }
 
     /// Decrypt cookie

@@ -8,7 +8,7 @@ use axum::http::{StatusCode, header::HeaderMap};
 use axum::response::Html;
 type GoogleClient = tiny_oidc_rp::Client<tiny_oidc_rp::GoogleProvider>;
 
-const SESSION_COOKIE_NAME: &str = "__Http-session";
+const SESSION_COOKIE_NAME: &str = "__Host-session";
 const SESSION_PAYLOAD_OIDC: u8 = 0;
 const SESSION_PAYLOAD_USER: u8 = 1;
 
@@ -114,10 +114,7 @@ async fn oidc_start_auth(
         .cookie_key
         .encrypt(SESSION_COOKIE_NAME, &session.key(), SESSION_PAYLOAD_OIDC)
         .unwrap()
-        .http_only(true)
-        .path("/")
         .same_site(cookie::SameSite::Lax)
-        .secure(true)
         .build();
     headers.insert(
         header::SET_COOKIE,
@@ -184,10 +181,7 @@ async fn oidc_return_from_idp(
         .cookie_key
         .encrypt(SESSION_COOKIE_NAME, &user, SESSION_PAYLOAD_USER)
         .unwrap()
-        .http_only(true)
-        .path("/")
         .same_site(cookie::SameSite::Lax)
-        .secure(true)
         .build();
 
     // Redirect to /login/result page with User session cookie
