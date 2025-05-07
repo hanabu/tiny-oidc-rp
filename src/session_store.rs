@@ -169,6 +169,13 @@ impl SessionStoreKey {
         use aes_gcm_siv::{AeadInPlace, Nonce};
         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 
+        // associated data (authenticated)
+        // payload_ver || key_id || cookie name
+        let mut associated_data = Vec::<u8>::with_capacity(name.len() + 2);
+        associated_data.push(payload_ver);
+        associated_data.push(self.encrypt_key_id());
+        associated_data.extend_from_slice(name.as_bytes());
+
         // Generate nonce
         // message = [payload_ver || key_id || nonce || MessagePack(payload) || tag]
         let mut message = Vec::with_capacity(3000);
@@ -190,7 +197,7 @@ impl SessionStoreKey {
             .encrypt_key()
             .encrypt_in_place_detached(
                 Nonce::from_slice(&header_nonce[PREFIX_SIZE..]),
-                name.as_bytes(),
+                &associated_data,
                 msg_pack,
             )
             // Returns Err when message.len()>=2^36
@@ -235,13 +242,20 @@ impl SessionStoreKey {
         // Check key_id
         let key_id = encrypted[1];
 
+        // associated data (authenticated)
+        // payload_ver || key_id || cookie name
+        let mut associated_data = Vec::<u8>::with_capacity(name.len() + 2);
+        associated_data.push(encrypted[0]); // payload_ver
+        associated_data.push(encrypted[1]); // key_id
+        associated_data.extend_from_slice(name.as_bytes());
+
         // Decrypt
         let (header_nonce, msg_pack) = encrypted.split_at_mut(PREFIX_SIZE + NONCE_SIZE);
         let (msg_pack, tag) = msg_pack.split_at_mut(msg_pack.len() - AUTH_TAG_SIZE);
         let key = self.decrypt_key_by_id(key_id).ok_or(DecodeError::NoKey)?;
         key.decrypt_in_place_detached(
             Nonce::from_slice(&header_nonce[PREFIX_SIZE..]),
-            name.as_bytes(),
+            &associated_data,
             msg_pack,
             Tag::from_slice(&tag),
         )
@@ -431,5 +445,78 @@ mod tests {
             .unwrap();
         let alt_decrypted = key.decrypt::<Session>(&cookie).unwrap();
         assert_eq!(alt_decrypted, alice);
+    }
+
+    #[test]
+    fn modified() {
+        use cookie::Cookie;
+        // Encrypt
+        let key = SessionStoreKey::new(0, "0123456789012345678901234567890123456789")
+            .unwrap()
+            // Same key
+            .add_key(1, "0123456789012345678901234567890123456789")
+            .unwrap();
+
+        let plain = "PlainText".to_string();
+        let cookie = key.encrypt("session", &plain, 5).unwrap().build();
+        // Check decryptable without modification
+        let cookie_no_modify = modify_cookie_value(&cookie, |_| {});
+        assert!(key.decrypt::<String>(&cookie_no_modify).is_ok());
+
+        // check name modification
+        let value = cookie.value();
+        let cookie_mod_name = Cookie::new("SESSION", value);
+        assert!(key.decrypt::<String>(&cookie_mod_name).is_err());
+
+        // check payload_ver modification
+        let cookie_mod_ver = modify_cookie_value(&cookie, |payload| {
+            payload[0] = 6; // 5->6
+        });
+        assert!(key.decrypt::<String>(&cookie_mod_ver).is_err());
+
+        // check key_id modification
+        let cookie_mod_keyid = modify_cookie_value(&cookie, |payload| {
+            payload[1] = 1; // 0->1
+        });
+        assert!(key.decrypt::<String>(&cookie_mod_keyid).is_err());
+
+        // check nonce modification
+        let cookie_mod_nonce = modify_cookie_value(&cookie, |payload| {
+            payload[3] ^= 0x04;
+        });
+        assert!(key.decrypt::<String>(&cookie_mod_nonce).is_err());
+
+        // check message modification
+        let cookie_mod_msg = modify_cookie_value(&cookie, |payload| {
+            payload[15] ^= 0x20;
+        });
+        assert!(key.decrypt::<String>(&cookie_mod_msg).is_err());
+
+        // check authenticate tag modification
+        let cookie_mod_tag = modify_cookie_value(&cookie, |payload| {
+            let tag_pos = payload.len() - 1;
+            payload[tag_pos] ^= 0x80;
+        });
+        assert!(key.decrypt::<String>(&cookie_mod_tag).is_err());
+    }
+
+    // Modify payload for testing
+    fn modify_cookie_value<F>(cookie: &cookie::Cookie, f: F) -> cookie::Cookie<'static>
+    where
+        F: FnOnce(&mut Vec<u8>),
+    {
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+
+        let (name, value) = cookie.name_value();
+
+        // Decode base64
+        let mut encrypted = URL_SAFE_NO_PAD.decode(value).unwrap();
+
+        f(&mut encrypted);
+
+        // Re-encode modified
+        let base64enc = URL_SAFE_NO_PAD.encode(&encrypted);
+
+        cookie::Cookie::new(name.to_string(), base64enc)
     }
 }
