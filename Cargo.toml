@@ -1,6 +1,6 @@
 [package]
 name = "tiny-oidc-rp"
-version = "0.2.1-beta1"
+version = "0.2.1"
 authors = ["Hanabusa Masahiro"]
 description = "Tiny OpenID Connect Relying Party"
 edition = "2024"

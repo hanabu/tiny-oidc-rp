@@ -35,3 +35,4 @@ To run this example, three environment variables are required.
 - OIDC_CLIENT_ID : client ID obtained by Google IdP
 - OIDC_CLIENT_SECRET : client secret obtained by Google IdP
 - OIDC_REDIRECT_URI : `https://<your-server>/login/callback`
+- COOKIE_SECRET : 40 or more random charactors for session Cookie encryption

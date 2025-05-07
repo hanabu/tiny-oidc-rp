@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 : 2025-05-07
+
+- Add optional feature `session-store` for encrypted session Cookie
+
 ## 0.2.0 : 2025-05-04
 
 - Deserialize custom claims in ID token
