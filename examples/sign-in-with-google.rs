@@ -8,6 +8,12 @@ use axum::http::{StatusCode, header::HeaderMap};
 use axum::response::Html;
 type GoogleClient = tiny_oidc_rp::Client<tiny_oidc_rp::GoogleProvider>;
 
+// for Debug run on localhost, remove __Host- prefix
+//   since Chrome, Edge reject it on http://localhost
+#[cfg(debug_assertions)]
+const SESSION_COOKIE_NAME: &str = "debug-session";
+// for Production, __Host- prefix
+#[cfg(not(debug_assertions))]
 const SESSION_COOKIE_NAME: &str = "__Host-session";
 const SESSION_PAYLOAD_OIDC: u8 = 0;
 const SESSION_PAYLOAD_USER: u8 = 1;
