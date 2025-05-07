@@ -368,7 +368,7 @@ impl SessionStoreKey {
     /// derive key by hash function
     fn derive_key(secret: &str) -> Result<aes_gcm_siv::Aes256GcmSiv, KeyError> {
         use aes_gcm_siv::KeyInit;
-        use sha2::Digest;
+        const HKDF_SALT: &[u8] = b"SessionStoreKey AES-GCM-SIV key";
 
         // Check if secret has enough entropy
         if secret.len() < 40 {
@@ -376,7 +376,8 @@ impl SessionStoreKey {
         }
 
         // Generate AES secret key from SHA256 hash
-        let key = sha2::Sha256::digest(secret.as_bytes());
+        let (key, _) = hkdf::Hkdf::<sha2::Sha256>::extract(Some(HKDF_SALT), secret.as_bytes());
+
         // Aes256GcmSiv instance
         //   new_from_slice() always requires 32byte(256bit) slice, and SHA-256 generate 32byte, unwrap() is always safe.
         let aes_key = aes_gcm_siv::Aes256GcmSiv::new_from_slice(&key).unwrap();

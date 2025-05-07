@@ -14,7 +14,7 @@ exclude = []
 [features]
 default = []
 # Encrypt session data in cookie
-session-store = ["dep:aes-gcm-siv", "dep:cookie", "dep:rmp-serde"]
+session-store = ["dep:aes-gcm-siv", "dep:cookie", "dep:hkdf", "dep:rmp-serde"]
 
 [[example]]
 name = "sign-in-with-google"
@@ -34,6 +34,7 @@ url = "2"
 # options for "session-store"
 aes-gcm-siv = { version="0.11", default-features=false, features=["aes"], optional=true }
 cookie = { version="0.18", default-features=false, optional=true }
+hkdf = { version="0.12", optional=true }
 rmp-serde = { version="1", optional=true }
 
 [dev-dependencies]
